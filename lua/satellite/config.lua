@@ -20,12 +20,14 @@
 --- @class SatelliteConfig
 --- @field handlers HandlerConfigs
 --- @field current_only boolean
+--- @field floating boolean
 --- @field winblend integer
 --- @field zindex integer
 --- @field excluded_filetypes string[]
 local user_config = {
   handlers = {},
   current_only = false,
+  floating = false,
   winblend = 50,
   zindex = 40,
   excluded_filetypes = {},

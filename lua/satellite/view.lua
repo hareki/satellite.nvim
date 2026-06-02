@@ -55,6 +55,10 @@ local create_view = util.noautocmd(function(cfg)
   cfg.noautocmd = true
   local winid = api.nvim_open_win(bufnr, false, cfg)
 
+  -- Tag the scrollbar window so it can be excluded from the set of target
+  -- windows (the scrollbars are themselves floating windows).
+  vim.w[winid].satellite_bar = true
+
   -- It's not sufficient to just specify Normal highlighting. With just that, a
   -- color scheme's specification of EndOfBuffer would be used to color the
   -- bottom of the scrollbar.
@@ -109,13 +113,22 @@ end
 --- @param winid integer
 --- @return integer bar_winid
 local function get_or_create_view(winid)
+  -- When the target is itself a floating window, the scrollbar must sit above
+  -- it. Floats default to zindex 50, so the configured zindex (default 40)
+  -- would otherwise render the bar behind its parent float and hide it.
+  local zindex = user_config.zindex
+  if util.is_floating_window(winid) then
+    local parent_zindex = api.nvim_win_get_config(winid).zindex or 50
+    zindex = math.max(zindex, parent_zindex + 1)
+  end
+
   local cfg = {
     win = winid,
     relative = 'win',
     style = 'minimal',
     border = 'none',
     focusable = false,
-    zindex = user_config.zindex,
+    zindex = zindex,
     width = 1,
     row = 0,
     height = util.get_winheight(winid),
@@ -230,6 +243,14 @@ function M.get_props(winid)
   }
 end
 
+--- Returns true if `winid` is one of the scrollbar windows created by this
+--- plugin (which are themselves floating windows).
+--- @param winid integer
+--- @return boolean
+local function is_scrollbar_win(winid)
+  return vim.w[winid].satellite_bar == true
+end
+
 --- @return integer[]
 local function get_target_windows()
   if user_config.current_only then
@@ -239,8 +260,13 @@ local function get_target_windows()
   local target_wins = {} --- @type integer[]
   local current_tab = api.nvim_get_current_tabpage()
   for _, winid in ipairs(api.nvim_list_wins()) do
-    if util.is_ordinary_window(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
-      target_wins[#target_wins + 1] = winid
+    -- Never target our own scrollbar windows.
+    if not is_scrollbar_win(winid) and api.nvim_win_get_tabpage(winid) == current_tab then
+      local eligible = util.is_ordinary_window(winid)
+        or (user_config.floating and util.is_floating_window(winid))
+      if eligible then
+        target_wins[#target_wins + 1] = winid
+      end
     end
   end
   return target_wins

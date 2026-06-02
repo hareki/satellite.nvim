@@ -69,6 +69,10 @@ local function enable()
     -- The following is used so that bars are shown when cycling through tabs.
     'TabEnter',
 
+    -- The following ensures bars on floating windows are cleaned up promptly,
+    -- since floats often close without triggering a focus change.
+    'WinClosed',
+
     'VimResized',
   }, {
     group = gid,
