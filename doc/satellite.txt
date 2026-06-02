@@ -23,6 +23,7 @@ of the default settings:
 >lua
     require('satellite').setup {
       current_only = false,
+      floating = false,
       winblend = 50,
       zindex = 40,
       excluded_filetypes = {},
@@ -77,6 +78,15 @@ current_only                                   *satellite-config-current_only*
 
         Whether satellite should only be displayed in the current window.
 
+floating                                           *satellite-config-floating*
+        Type: `boolean`
+        Default: `false`
+
+        Whether scrollbars should also be displayed on floating windows.
+        Floating windows whose contents fully fit on screen never get a
+        scrollbar. Scrollbars on floating windows are display-only: interactive
+        mouse dragging is not supported (see |satellite-mouse-support|).
+
 excluded_filetypes                       *satellite-config-excluded_filetypes*
         Type: `string[]`
         Default: `[]`
@@ -119,6 +129,10 @@ Mouse Support ~
 
 A |<LeftMouse>| mapping is automatically created for interactive mouse
 support.
+
+* Mouse support applies to ordinary windows only. Scrollbars shown on floating
+  windows (|satellite-config-floating|) are display-only and cannot be clicked
+  or dragged to scroll.
 
 ==============================================================================
 ISSUES                                                      *satellite-issues*

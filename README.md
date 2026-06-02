@@ -17,7 +17,8 @@ and because of this, this plugin implements fairly unideal and unoptimised worka
   * Marks
   * Quickfix
 * Handling for folds
-* Mouse support
+* Mouse support (ordinary windows only; scrollbars on floating windows are
+  display-only)
 
 ## Requirements
 
@@ -31,6 +32,10 @@ function. Here is an example with most of the default settings:
 ```lua
 require('satellite').setup {
   current_only = false,
+  -- Show scrollbars on floating windows too. Off by default. Floats whose
+  -- content fully fits on screen never get a scrollbar. Scrollbars on floating
+  -- windows are display-only: mouse click/drag scrolling is not supported.
+  floating = false,
   winblend = 50,
   zindex = 40,
   excluded_filetypes = {},

@@ -228,6 +228,16 @@ function M.is_ordinary_window(winid)
   return not_external and not_floating
 end
 
+--- Returns true for floating windows (not external), and false otherwise.
+--- @param winid integer
+--- @return boolean
+function M.is_floating_window(winid)
+  local cfg = api.nvim_win_get_config(winid)
+  local not_external = not cfg['external']
+  local is_floating = cfg['relative'] ~= ''
+  return not_external and is_floating
+end
+
 --- Return top line and bottom line in window. For folds, the top line
 --- represents the start of the fold and the bottom line represents the end of
 --- the fold.
