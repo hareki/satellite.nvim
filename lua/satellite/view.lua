@@ -290,6 +290,33 @@ local function close(winid)
   winids[winid] = nil
 end
 
+--- Synchronously close the scrollbar for `winid` (no vim.schedule).
+--- @param winid integer
+function M.close_bar(winid)
+  local bar_winid = get_bar_winid(winid)
+  if not bar_winid then
+    return
+  end
+  -- noautocmd so closing the bar (itself a float) does not fire further events.
+  local ok = pcall(util.noautocmd(api.nvim_win_close), bar_winid, true)
+  if ok then
+    winids[winid] = nil
+  end
+  -- On failure (e.g. textlock) keep the cache entry for the deferred refresh.
+end
+
+--- Synchronously close bars whose target window is gone. A bar orphaned by a
+--- closing float (relative='win' with an invalid parent) renders at the editor
+--- origin ("flash to the left") until closed; doing it here, before the
+--- deferred refresh, removes it before the next redraw.
+function M.close_orphaned_bars()
+  for winid in pairs(winids) do
+    if not api.nvim_win_is_valid(winid) then
+      M.close_bar(winid)
+    end
+  end
+end
+
 function M.refresh_bars()
   local current_bar_wins = {} --- @type integer[]
 
@@ -322,6 +349,10 @@ function M.refresh_bars()
 end
 
 function M.schedule_refresh()
+  -- Remove bars orphaned by a just-closed window synchronously, before the
+  -- coalesced (deferred) refresh, so they never render at the wrong position.
+  M.close_orphaned_bars()
+
   if refresh_scheduled then
     return
   end
