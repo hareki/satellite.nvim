@@ -290,29 +290,29 @@ local function close(winid)
   winids[winid] = nil
 end
 
---- Synchronously close the scrollbar for `winid` (no vim.schedule).
+--- Synchronously hide the scrollbar for `winid` (no vim.schedule).
+--- Hide instead of close: this runs inside WinClosed, which :tabclose fires
+--- while iterating the tab's windows; closing a window here derails that
+--- iteration and aborts the tabclose with a spurious E445. Hiding leaves the
+--- window list intact; the deferred refresh closes the hidden bar for real.
 --- @param winid integer
-function M.close_bar(winid)
+local function hide_bar(winid)
   local bar_winid = get_bar_winid(winid)
   if not bar_winid then
     return
   end
-  -- noautocmd so closing the bar (itself a float) does not fire further events.
-  local ok = pcall(util.noautocmd(api.nvim_win_close), bar_winid, true)
-  if ok then
-    winids[winid] = nil
-  end
-  -- On failure (e.g. textlock) keep the cache entry for the deferred refresh.
+  pcall(util.noautocmd(api.nvim_win_set_config), bar_winid, { hide = true })
+  -- Keep the cache entry so the deferred refresh closes the hidden bar.
 end
 
---- Synchronously close bars whose target window is gone. A bar orphaned by a
+--- Synchronously hide bars whose target window is gone. A bar orphaned by a
 --- closing float (relative='win' with an invalid parent) renders at the editor
---- origin ("flash to the left") until closed; doing it here, before the
---- deferred refresh, removes it before the next redraw.
+--- origin ("flash to the left") until closed; hiding it here, before the
+--- deferred refresh, removes it from view before the next redraw.
 function M.close_orphaned_bars()
   for winid in pairs(winids) do
     if not api.nvim_win_is_valid(winid) then
-      M.close_bar(winid)
+      hide_bar(winid)
     end
   end
 end
