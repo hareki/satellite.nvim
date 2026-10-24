@@ -133,6 +133,8 @@ local function get_or_create_view(winid)
     row = 0,
     height = util.get_winheight(winid),
     col = api.nvim_win_get_width(winid) - 1,
+    -- Unhide a bar hidden by hide_orphaned_bars for a close that was then aborted.
+    hide = false,
   }
 
   local bar_winid = get_bar_winid(winid)
@@ -305,15 +307,32 @@ local function hide_bar(winid)
   -- Keep the cache entry so the deferred refresh closes the hidden bar.
 end
 
---- Synchronously hide bars whose target window is gone. A bar orphaned by a
---- closing float (relative='win' with an invalid parent) renders at the editor
---- origin ("flash to the left") until closed; hiding it here, before the
---- deferred refresh, removes it from view before the next redraw.
-function M.close_orphaned_bars()
+--- Synchronously hide bars whose target window is gone or is `closing`. A bar
+--- orphaned by a closed float (relative='win' with an invalid parent) is drawn
+--- at the editor origin until closed, and the redraw that follows the current
+--- key handler comes before any scheduled callback, so the bar must be hidden
+--- from within the handler. WinClosed fires while its window is still valid,
+--- hence `closing` names it explicitly.
+--- @param closing? integer window being closed (WinClosed), still valid
+--- @return boolean hidden whether any bar was hidden
+function M.hide_orphaned_bars(closing)
+  local hidden = false
   for winid in pairs(winids) do
-    if not api.nvim_win_is_valid(winid) then
+    if winid == closing or not api.nvim_win_is_valid(winid) then
       hide_bar(winid)
+      hidden = true
     end
+  end
+  return hidden
+end
+
+--- SafeState fires right before each redraw of the main loop, once the key
+--- handler and its autocmds are done: the last hook that can catch a float
+--- closed inside a non-nested autocmd, which fires no WinClosed. Only a hit
+--- schedules a refresh, so the idle loop stays free of scheduled work.
+function M.on_safe_state()
+  if M.hide_orphaned_bars() then
+    M.schedule_refresh()
   end
 end
 
@@ -348,10 +367,13 @@ function M.refresh_bars()
   end
 end
 
-function M.schedule_refresh()
-  -- Remove bars orphaned by a just-closed window synchronously, before the
+--- @param args? vim.api.keyset.create_autocmd.callback_args autocmd args when used as a callback
+function M.schedule_refresh(args)
+  -- Hide bars orphaned by a just-closed window synchronously, before the
   -- coalesced (deferred) refresh, so they never render at the wrong position.
-  M.close_orphaned_bars()
+  local closing = type(args) == 'table' and args.event == 'WinClosed' and tonumber(args.match)
+    or nil
+  M.hide_orphaned_bars(closing)
 
   if refresh_scheduled then
     return
