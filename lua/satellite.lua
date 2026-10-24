@@ -70,13 +70,21 @@ local function enable()
     'TabEnter',
 
     -- The following ensures bars on floating windows are cleaned up promptly,
-    -- since floats often close without triggering a focus change.
+    -- since floats often close without triggering a focus change. It also names
+    -- the closing window, whose bar is hidden before the redraw that follows.
     'WinClosed',
 
     'VimResized',
   }, {
     group = gid,
     callback = view.schedule_refresh,
+  })
+
+  -- A float closed inside a non-nested autocmd fires no WinClosed; SafeState is
+  -- the last hook before the next redraw, where its orphaned bar is hidden.
+  api.nvim_create_autocmd('SafeState', {
+    group = gid,
+    callback = view.on_safe_state,
   })
 end
 
